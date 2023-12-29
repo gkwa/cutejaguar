@@ -1,0 +1,14 @@
+* cutejaguar
+
+** summary
+
+This is a description of project cutejaguar.
+
+** usage
+
+Example:
+#+begin_example
+make test
+./cutejaguar --help
+./cutejaguar --verbose --verbose # for debug
+#+end_example
