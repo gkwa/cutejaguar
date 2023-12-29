@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sort"
 	"sync"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 
@@ -19,21 +20,23 @@ import (
 
 // Result represents the result of listing launch templates.
 type Result struct {
-	Region       string
+	Region       lemondrop.RegionComponents
 	TemplateName string
+	ConsoleURL   string // URL pointing to the AWS Management Console for the launch template in the region
 }
 
 // AuthFailure represents authentication failure details.
 type AuthFailure struct {
-	Region  string
+	Region  lemondrop.RegionComponents
 	Code    string
 	Message string
 }
 
 var opts struct {
-	LogFormat string `long:"log-format" choice:"text" choice:"json" default:"text" required:"false"`
-	Verbose   []bool `short:"v" long:"verbose" description:"Show verbose debug information, each -v bumps log level"`
-	logLevel  slog.Level
+	LogFormat    string `long:"log-format" choice:"text" choice:"json" default:"text" required:"false"`
+	Verbose      []bool `short:"v" long:"verbose" description:"Show verbose debug information, each -v bumps log level"`
+	NoAuthErrors bool   `long:"no-autherror" description:"Do not show authentication errors"`
+	logLevel     slog.Level
 }
 
 func Execute() int {
@@ -65,7 +68,7 @@ func parseFlags() error {
 func run() error {
 	regions, err := lemondrop.GetRegionDetails()
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to get region details: %w", err)
 	}
 
 	var errgrp errgroup.Group
@@ -93,7 +96,7 @@ func run() error {
 					if apiErr.ErrorCode() == "AuthFailure" {
 						mu.Lock()
 						authFailures = append(authFailures, AuthFailure{
-							Region:  region.RegionCode,
+							Region:  region,
 							Code:    apiErr.ErrorCode(),
 							Message: apiErr.ErrorMessage(),
 						})
@@ -105,7 +108,12 @@ func run() error {
 
 			mu.Lock()
 			for _, template := range templates {
-				results = append(results, Result{Region: region.RegionCode, TemplateName: template})
+				results = append(results, Result{
+					Region:       region,
+					TemplateName: template,
+					ConsoleURL: fmt.Sprintf("https://%s.console.aws.amazon.com/ec2/home?region=%s#LaunchTemplates:",
+						region.RegionCode, region.RegionCode),
+				})
 			}
 			mu.Unlock()
 			return nil
@@ -125,18 +133,18 @@ func run() error {
 
 	// Sort results by region
 	sort.Slice(results, func(i, j int) bool {
-		return results[i].Region < results[j].Region
+		return results[i].Region.RegionCode < results[j].Region.RegionCode
 	})
 
 	// Print launch templates
 	for _, result := range results {
-		fmt.Printf("%s %s\n", result.Region, result.TemplateName)
+		fmt.Printf("%s %s %s\n", result.Region.RegionCode, result.TemplateName, result.ConsoleURL)
 	}
 
-	// Print aggregated authentication failures
-	slog.Info("Auth Failures:")
-	for _, failure := range authFailures {
-		slog.Error("Auth Failure", "region", failure.Region, "code", failure.Code, "message", failure.Message)
+	if !opts.NoAuthErrors {
+		for _, failure := range authFailures {
+			slog.Error("auth Failure", "region", failure.Region.RegionCode, "code", failure.Code, "message", failure.Message)
+		}
 	}
 
 	slog.Info("templates", "count", len(results))
@@ -145,7 +153,10 @@ func run() error {
 }
 
 func listLaunchTemplates(region lemondrop.RegionComponents) ([]string, error) {
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region.RegionCode))
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel() // This is important to release resources associated with the context
+
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region.RegionCode))
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +164,7 @@ func listLaunchTemplates(region lemondrop.RegionComponents) ([]string, error) {
 	client := ec2.NewFromConfig(cfg)
 
 	// List launch templates by name
-	listTemplatesOutput, err := client.DescribeLaunchTemplates(context.TODO(), &ec2.DescribeLaunchTemplatesInput{})
+	listTemplatesOutput, err := client.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{})
 	if err != nil {
 		return []string{}, err
 	}
