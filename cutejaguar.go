@@ -2,17 +2,26 @@ package cutejaguar
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/smithy-go"
 	"github.com/jessevdk/go-flags"
 	"github.com/taylormonacelli/lemondrop"
 )
+
+// Result represents the result of listing launch templates.
+type Result struct {
+	Region       string
+	TemplateName string
+}
 
 var opts struct {
 	LogFormat string `long:"log-format" choice:"text" choice:"json" default:"text" required:"false"`
@@ -57,7 +66,7 @@ func run() error {
 
 	// Use a mutex to safely append to the results slice
 	var mu sync.Mutex
-	var results []string
+	var results []Result
 	done := make(chan struct{}) // Channel to signal completion
 
 	for _, region := range regions {
@@ -68,14 +77,22 @@ func run() error {
 			defer func() {
 				<-semaphore // release semaphore
 			}()
-			templates, err := listLaunchTemplates(region.RegionCode)
+			templates, err := listLaunchTemplates(region)
 			if err != nil {
+				// Check if the error is an API error
 				// us-gov-east-1
-				slog.Error("Error in region", "region", region, "error", err)
-				return err
+				var apiErr smithy.APIError
+				if errors.As(err, &apiErr) {
+					if apiErr.ErrorCode() == "AuthFailure" {
+						slog.Error("apierr", "code", apiErr.ErrorCode(), "message", apiErr.ErrorMessage())
+					}
+				}
 			}
+
 			mu.Lock()
-			results = append(results, templates...)
+			for _, template := range templates {
+				results = append(results, Result{Region: region.RegionCode, TemplateName: template})
+			}
 			mu.Unlock()
 			return nil
 		})
@@ -92,13 +109,23 @@ func run() error {
 
 	<-done // Wait for completion before proceeding
 
-	fmt.Println(results)
+	// Sort results by region
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Region < results[j].Region
+	})
+
+	// Format and print the sorted results
+	for _, result := range results {
+		fmt.Printf("%s %s\n", result.Region, result.TemplateName)
+	}
+
+	slog.Info("templates", "count", len(results))
 
 	return nil
 }
 
-func listLaunchTemplates(region string) ([]string, error) {
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
+func listLaunchTemplates(region lemondrop.RegionComponents) ([]string, error) {
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region.RegionCode))
 	if err != nil {
 		return nil, err
 	}
@@ -108,12 +135,23 @@ func listLaunchTemplates(region string) ([]string, error) {
 	// List launch templates by name
 	listTemplatesOutput, err := client.DescribeLaunchTemplates(context.TODO(), &ec2.DescribeLaunchTemplatesInput{})
 	if err != nil {
-		return nil, err
+		// Check if the error is an API error
+		// us-gov-east-1
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) {
+			if apiErr.ErrorCode() == "AuthFailure" {
+				slog.Error("apierr", "region", region, "code", apiErr.ErrorCode(), "message", apiErr.ErrorMessage())
+			}
+		}
+	}
+
+	if listTemplatesOutput == nil {
+		return []string{}, nil
 	}
 
 	var templates []string
 	for _, template := range listTemplatesOutput.LaunchTemplates {
-		templates = append(templates, fmt.Sprintf("%s %s", region, *template.LaunchTemplateName))
+		templates = append(templates, *template.LaunchTemplateName)
 	}
 
 	return templates, nil

@@ -2,13 +2,13 @@
 
 ** summary
 
-This is a description of project cutejaguar.
+Loop over aws regions searching for my launch templates and list them.
 
 ** usage
 
 Example:
 #+begin_example
-make test
+make
 ./cutejaguar --help
 ./cutejaguar --verbose --verbose # for debug
 #+end_example
