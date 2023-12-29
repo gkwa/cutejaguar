@@ -23,6 +23,13 @@ type Result struct {
 	TemplateName string
 }
 
+// AuthFailure represents authentication failure details.
+type AuthFailure struct {
+	Region  string
+	Code    string
+	Message string
+}
+
 var opts struct {
 	LogFormat string `long:"log-format" choice:"text" choice:"json" default:"text" required:"false"`
 	Verbose   []bool `short:"v" long:"verbose" description:"Show verbose debug information, each -v bumps log level"`
@@ -64,9 +71,10 @@ func run() error {
 	var errgrp errgroup.Group
 	semaphore := make(chan struct{}, 10) // Semaphore to limit routines
 
-	// Use a mutex to safely append to the results slice
+	// Use a mutex to safely append to the results slice and failures slice
 	var mu sync.Mutex
 	var results []Result
+	var authFailures []AuthFailure
 	done := make(chan struct{}) // Channel to signal completion
 
 	for _, region := range regions {
@@ -80,13 +88,19 @@ func run() error {
 			templates, err := listLaunchTemplates(region)
 			if err != nil {
 				// Check if the error is an API error
-				// us-gov-east-1
 				var apiErr smithy.APIError
 				if errors.As(err, &apiErr) {
 					if apiErr.ErrorCode() == "AuthFailure" {
-						slog.Error("apierr", "code", apiErr.ErrorCode(), "message", apiErr.ErrorMessage())
+						mu.Lock()
+						authFailures = append(authFailures, AuthFailure{
+							Region:  region.RegionCode,
+							Code:    apiErr.ErrorCode(),
+							Message: apiErr.ErrorMessage(),
+						})
+						mu.Unlock()
 					}
 				}
+				return err
 			}
 
 			mu.Lock()
@@ -114,9 +128,15 @@ func run() error {
 		return results[i].Region < results[j].Region
 	})
 
-	// Format and print the sorted results
+	// Print launch templates
 	for _, result := range results {
 		fmt.Printf("%s %s\n", result.Region, result.TemplateName)
+	}
+
+	// Print aggregated authentication failures
+	slog.Info("Auth Failures:")
+	for _, failure := range authFailures {
+		slog.Error("Auth Failure", "region", failure.Region, "code", failure.Code, "message", failure.Message)
 	}
 
 	slog.Info("templates", "count", len(results))
@@ -135,14 +155,7 @@ func listLaunchTemplates(region lemondrop.RegionComponents) ([]string, error) {
 	// List launch templates by name
 	listTemplatesOutput, err := client.DescribeLaunchTemplates(context.TODO(), &ec2.DescribeLaunchTemplatesInput{})
 	if err != nil {
-		// Check if the error is an API error
-		// us-gov-east-1
-		var apiErr smithy.APIError
-		if errors.As(err, &apiErr) {
-			if apiErr.ErrorCode() == "AuthFailure" {
-				slog.Error("apierr", "region", region, "code", apiErr.ErrorCode(), "message", apiErr.ErrorMessage())
-			}
-		}
+		return []string{}, err
 	}
 
 	if listTemplatesOutput == nil {
