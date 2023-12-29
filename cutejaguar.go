@@ -58,6 +58,7 @@ func run() error {
 	// Use a mutex to safely append to the results slice
 	var mu sync.Mutex
 	var results []string
+	done := make(chan struct{}) // Channel to signal completion
 
 	for _, region := range regions {
 		region := region // capture range variable
@@ -82,9 +83,14 @@ func run() error {
 
 	slog.Debug("we get here")
 
-	if err := errgrp.Wait(); err != nil {
-		return err
-	}
+	go func() {
+		if err := errgrp.Wait(); err != nil {
+			slog.Error("Error in errgroup", "error", err)
+		}
+		close(done) // Signal completion
+	}()
+
+	<-done // Wait for completion before proceeding
 
 	fmt.Println(results)
 
