@@ -4,7 +4,7 @@ go 1.21.5
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.28.0
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.184.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.185.0
 	github.com/aws/smithy-go v1.22.0
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/taylormonacelli/lemondrop v0.0.20
