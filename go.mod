@@ -2,7 +2,7 @@ module github.com/taylormonacelli/cutejaguar
 
 go 1.22
 
-toolchain go1.24.0
+toolchain go1.24.1
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.29.9
