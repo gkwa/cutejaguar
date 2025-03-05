@@ -53,8 +53,8 @@ github.com/taylormonacelli/littlecow v0.0.5 h1:XO12CRKS2TIg4NppeFt4ZWFYo3Z7i+ek2
 github.com/taylormonacelli/littlecow v0.0.5/go.mod h1:U5Y8E9afDjxSTrKkrwekw5J9YIcrcKdBzLDV9JF0dXg=
 github.com/taylormonacelli/somespider v0.0.0-20240127160314-1cf65a8b592b h1:b9rJpLFYnj+3983WWZMNpPnpui+HEeQIwl4/QQnNf28=
 github.com/taylormonacelli/somespider v0.0.0-20240127160314-1cf65a8b592b/go.mod h1:lZSB/IUt7gzn5KIdfO+xRyLX3JhfvRn/vxTMWMSkcOM=
-golang.org/x/sync v0.11.0 h1:GGz8+XQP4FvTTrjZPzNKTMFtSXH80RAzG+5ghFPgK9w=
-golang.org/x/sync v0.11.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+golang.org/x/sync v0.12.0 h1:MHc5BpPuC30uJk597Ri8TV3CNZcTLu6B6z4lJy+g6Jw=
+golang.org/x/sync v0.12.0/go.mod h1:1dzgHSNfp02xaA81J2MS99Qcpr2w7fw1gpm99rleRqA=
 golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.21.0 h1:rF+pYz3DAGSQAxAu1CbC7catZg4ebC4UIeIhKxBZvws=
 golang.org/x/sys v0.21.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
