@@ -1,6 +1,6 @@
 module github.com/taylormonacelli/cutejaguar
 
-go 1.24.0
+go 1.25.0
 
 toolchain go1.26.1
 
@@ -11,7 +11,7 @@ require (
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/taylormonacelli/lemondrop v0.0.20
 	github.com/taylormonacelli/littlecow v0.0.5
-	golang.org/x/sync v0.19.0
+	golang.org/x/sync v0.20.0
 )
 
 require (
