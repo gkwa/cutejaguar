@@ -6,7 +6,7 @@ toolchain go1.26.3
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.17
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.300.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.301.0
 	github.com/aws/smithy-go v1.25.1
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/taylormonacelli/lemondrop v0.0.20
