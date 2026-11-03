@@ -7,7 +7,7 @@ toolchain go1.27.3
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.33.13
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.343.0
-	github.com/aws/smithy-go v1.28.7
+	github.com/aws/smithy-go v1.28.8
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/taylormonacelli/lemondrop v0.0.20
 	github.com/taylormonacelli/littlecow v0.0.5
